@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ScoreFinder</title>
+    <link rel="stylesheet" href="/static/app.css" />
+  </head>
+  <body>
+    <div class="page-shell">
+      <header class="hero">
+        <div>
+          <p class="eyebrow">Local Score Archive</p>
+          <h1>ScoreFinder</h1>
+          <p class="lead">
+            楽譜 URL を 1 件ずつ取り込み、必要なものだけを NAS に保存し、あとからメタデータで再検索できます。
+          </p>
+        </div>
+        <div class="hero-note">
+          <p>保存対象は利用許諾のある楽譜に限定してください。</p>
+          <p>大量クロールは行わず、URL ベースの明示的な取り込みに限定します。</p>
+        </div>
+      </header>
+
+      <main class="grid">
+        <section class="panel">
+          <div class="panel-header">
+            <h2>保存先設定</h2>
+            <span class="pill">NAS 対応</span>
+          </div>
+          <form id="config-form" class="stack-form">
+            <label>
+              <span>保存先パス</span>
+              <input id="storage-root" name="storage_root" type="text" placeholder="/Volumes/NAS/scorefinder" required />
+            </label>
+            <button type="submit">保存先を更新</button>
+          </form>
+          <p class="message">現在の設定: <code id="config-path">-</code></p>
+          <p class="message">bootstrap: <code id="bootstrap-path">-</code></p>
+          <p class="message">現在の DB: <code id="database-path">-</code></p>
+          <p id="config-message" class="message"></p>
+        </section>
+
+        <section class="panel">
+          <div class="panel-header">
+            <h2>URL 取り込み</h2>
+            <span class="pill">U-FRET</span>
+          </div>
+          <form id="import-form" class="stack-form">
+            <label>
+              <span>楽譜 URL</span>
+              <input id="import-url" name="url" type="url" placeholder="https://www.ufret.jp/song.php?data=963" required />
+            </label>
+            <button type="submit">URL を取り込む</button>
+          </form>
+          <p id="import-message" class="message"></p>
+          <div id="import-result" class="result-grid empty-state">取り込み結果はここに表示されます。</div>
+        </section>
+
+        <section class="panel preview-panel">
+          <div class="panel-header">
+            <h2>プレビューと保存</h2>
+            <span class="pill">メタデータ付与</span>
+          </div>
+          <div id="preview-empty" class="empty-state">
+            URL 取り込み結果、または保存済み楽譜を選ぶとここでプレビューできます。
+          </div>
+          <img id="image-preview" class="preview-media hidden" alt="楽譜プレビュー" />
+          <iframe id="pdf-preview" class="preview-media hidden" title="譜面プレビュー"></iframe>
+
+          <div id="preview-meta" class="preview-meta hidden"></div>
+
+          <form id="save-form" class="stack-form hidden">
+            <label>
+              <span>アーティスト名</span>
+              <input id="artist" name="artist" type="text" required />
+            </label>
+            <label>
+              <span>楽曲名</span>
+              <input id="song-title" name="song_title" type="text" required />
+            </label>
+            <label>
+              <span>譜面種別</span>
+              <select id="score-type" name="score_type">
+                {% for score_type in score_types %}
+                <option value="{{ score_type }}">{{ score_type }}</option>
+                {% endfor %}
+              </select>
+            </label>
+            <label>
+              <span>メモ</span>
+              <textarea id="memo" name="memo" rows="3" placeholder="任意"></textarea>
+            </label>
+            <button type="submit">この楽譜を保存</button>
+          </form>
+          <p id="save-message" class="message"></p>
+        </section>
+
+        <section class="panel saved-panel">
+          <div class="panel-header">
+            <h2>保存済み検索</h2>
+            <span class="pill">データフィルタ</span>
+          </div>
+          <form id="saved-search-form" class="filter-grid">
+            <label>
+              <span>自由検索</span>
+              <input id="filter-q" name="q" type="text" placeholder="曲名、メモ、検索語など" />
+            </label>
+            <label>
+              <span>アーティスト名</span>
+              <input id="filter-artist" name="artist" type="text" />
+            </label>
+            <label>
+              <span>楽曲名</span>
+              <input id="filter-song" name="song_title" type="text" />
+            </label>
+            <label>
+              <span>譜面種別</span>
+              <select id="filter-score-type" name="score_type">
+                <option value="">すべて</option>
+                {% for score_type in score_types %}
+                <option value="{{ score_type }}">{{ score_type }}</option>
+                {% endfor %}
+              </select>
+            </label>
+            <label>
+              <span>ファイル種別</span>
+              <select id="filter-media-kind" name="media_kind">
+                <option value="">すべて</option>
+                <option value="image">画像</option>
+                <option value="pdf">PDF</option>
+                <option value="html">HTML</option>
+              </select>
+            </label>
+            <label>
+              <span>保存日 From</span>
+              <input id="filter-saved-from" name="saved_from" type="date" />
+            </label>
+            <label>
+              <span>保存日 To</span>
+              <input id="filter-saved-to" name="saved_to" type="date" />
+            </label>
+            <button type="submit">保存済みを検索</button>
+          </form>
+          <p id="saved-message" class="message"></p>
+          <div id="saved-results" class="saved-results empty-state">保存済みデータはここに表示されます。</div>
+        </section>
+      </main>
+    </div>
+
+    <script src="/static/app.js" defer></script>
+  </body>
+</html>
