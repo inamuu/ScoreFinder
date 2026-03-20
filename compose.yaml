@@ -1,0 +1,20 @@
+name: scorefinder
+
+services:
+  app:
+    build:
+      context: .
+    ports:
+      - "${SCOREFINDER_BIND_PORT:-8000}:8000"
+    environment:
+      SCOREFINDER_HOME: /data/.scorefinder
+      SCOREFINDER_HOST: 0.0.0.0
+      SCOREFINDER_PORT: 8000
+    volumes:
+      - type: bind
+        source: ${SCOREFINDER_DATA_DIR:-./docker-data}
+        target: /data
+      - type: bind
+        source: ${SCOREFINDER_NAS_PATH:-./docker-nas}
+        target: /mnt/scores
+    restart: unless-stopped

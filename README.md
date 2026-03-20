@@ -36,6 +36,36 @@ uv run uvicorn scorefinder.app:app --reload
 
 起動後に [http://127.0.0.1:8000](http://127.0.0.1:8000) を開いてください。
 
+## Docker
+
+```bash
+docker build -t scorefinder .
+```
+
+```bash
+docker run --rm -p 8000:8000 \
+  -e SCOREFINDER_HOME=/data/.scorefinder \
+  -v "$(pwd)/docker-data:/data" \
+  -v "/Volumes/personal_folder/04_音楽/40_Scores:/mnt/scores" \
+  scorefinder
+```
+
+起動後に [http://127.0.0.1:8000](http://127.0.0.1:8000) を開き、保存先パスを `/mnt/scores` に設定してください。NAS を使う場合は、ホスト OS 側で先にマウントしてからコンテナへボリュームとして渡します。
+
+## Docker Compose
+
+```bash
+SCOREFINDER_NAS_PATH="/Volumes/personal_folder/04_音楽/40_Scores" docker compose up --build
+```
+
+必要に応じて次の環境変数を上書きできます。
+
+- `SCOREFINDER_NAS_PATH`: コンテナ内 `/mnt/scores` に割り当てるホスト側の NAS パス
+- `SCOREFINDER_DATA_DIR`: コンテナ内 `/data` に割り当てる永続データ領域。既定値は `./docker-data`
+- `SCOREFINDER_BIND_PORT`: ホスト側で公開するポート。既定値は `8000`
+
+`compose.yaml` は NAS パス未指定でも起動できるように、既定では `./docker-nas` を `/mnt/scores` に割り当てます。実運用では `SCOREFINDER_NAS_PATH` を指定してください。
+
 ## 使い方
 
 1. U-FRET の曲ページ URL を入力して取り込みます

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from typing import Any
 from urllib.parse import quote
@@ -261,4 +262,6 @@ app = create_app()
 def main() -> None:
     import uvicorn
 
-    uvicorn.run("scorefinder.app:app", host="127.0.0.1", port=8000, reload=False)
+    host = os.environ.get("SCOREFINDER_HOST", "127.0.0.1")
+    port = int(os.environ.get("SCOREFINDER_PORT", "8000"))
+    uvicorn.run("scorefinder.app:app", host=host, port=port, reload=False)
