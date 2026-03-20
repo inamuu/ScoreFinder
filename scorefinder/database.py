@@ -7,6 +7,7 @@ from typing import Any
 
 from .models import StoredFile
 from .schemas import SaveScoreRequest
+from .utils import sanitize_component
 
 
 CREATE_TABLE_SQL = """
@@ -81,8 +82,15 @@ class ScoreRepository:
 
             connection.executescript(INDEX_SQL)
 
-    def insert_score(self, request: SaveScoreRequest, stored_file: StoredFile) -> dict[str, Any]:
+    def insert_score(
+        self,
+        request: SaveScoreRequest,
+        stored_file: StoredFile,
+        *,
+        storage_root: str | None = None,
+    ) -> dict[str, Any]:
         saved_at = datetime.now(timezone.utc).isoformat()
+        storage_path = self._serialize_storage_path(stored_file.path, storage_root)
         with self._connect() as connection:
             cursor = connection.execute(
                 """
@@ -115,7 +123,7 @@ class ScoreRepository:
                     stored_file.media_kind,
                     stored_file.mime_type,
                     stored_file.extension,
-                    str(stored_file.path),
+                    storage_path,
                     stored_file.filename,
                     request.source_url,
                     request.source_page_url,
@@ -198,6 +206,33 @@ class ScoreRepository:
             rows = connection.execute(query, params).fetchall()
         return [self._row_to_dict(row) for row in rows]
 
+    @staticmethod
+    def resolve_storage_path(score: dict[str, Any], storage_root: str) -> Path:
+        configured_root = Path(storage_root).expanduser().resolve()
+        raw_path = Path(score["storage_path"])
+
+        if raw_path.is_absolute() and raw_path.exists():
+            return raw_path
+
+        if not raw_path.is_absolute():
+            relative_candidate = (configured_root / raw_path).resolve()
+            if relative_candidate.exists():
+                return relative_candidate
+
+        legacy_candidate = (
+            configured_root
+            / sanitize_component(score["artist"])
+            / sanitize_component(score["song_title"])
+            / sanitize_component(score["score_type"])
+            / score["storage_filename"]
+        )
+        if legacy_candidate.exists():
+            return legacy_candidate
+
+        if raw_path.is_absolute():
+            return raw_path
+        return (configured_root / raw_path).resolve()
+
     def _connect(self) -> sqlite3.Connection:
         connection = sqlite3.connect(self.db_path)
         connection.row_factory = sqlite3.Row
@@ -256,3 +291,15 @@ class ScoreRepository:
             "sha256": row["sha256"],
             "saved_at": row["saved_at"],
         }
+
+    @staticmethod
+    def _serialize_storage_path(path: Path, storage_root: str | None) -> str:
+        resolved_path = Path(path).expanduser().resolve()
+        if not storage_root:
+            return str(resolved_path)
+
+        configured_root = Path(storage_root).expanduser().resolve()
+        try:
+            return str(resolved_path.relative_to(configured_root))
+        except ValueError:
+            return str(resolved_path)

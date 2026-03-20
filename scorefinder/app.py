@@ -127,8 +127,8 @@ def create_app() -> FastAPI:
         except httpx.HTTPError as error:
             raise HTTPException(status_code=502, detail=f"ファイル取得に失敗しました: {error}") from error
 
-        score = repository.insert_score(payload, stored_file)
-        return _serialize_saved_score(score)
+        score = repository.insert_score(payload, stored_file, storage_root=config.storage_root)
+        return _serialize_saved_score(score, repository=repository, storage_root=config.storage_root)
 
     @app.get("/api/scores")
     def search_saved_scores(
@@ -141,6 +141,7 @@ def create_app() -> FastAPI:
         saved_to: str | None = None,
     ) -> dict[str, Any]:
         repository = _get_repository(app)
+        config = load_config()
         try:
             scores = repository.search_scores(
                 q=q,
@@ -154,26 +155,33 @@ def create_app() -> FastAPI:
         except ValueError as error:
             raise HTTPException(status_code=400, detail=str(error)) from error
 
-        return {"results": [_serialize_saved_score(score) for score in scores]}
+        return {
+            "results": [
+                _serialize_saved_score(score, repository=repository, storage_root=config.storage_root)
+                for score in scores
+            ]
+        }
 
     @app.get("/api/scores/{score_id}")
     def get_score(score_id: int) -> dict[str, Any]:
         repository = _get_repository(app)
+        config = load_config()
         try:
             score = repository.get_score(score_id)
         except KeyError as error:
             raise HTTPException(status_code=404, detail="保存済み楽譜が見つかりません") from error
-        return _serialize_saved_score(score)
+        return _serialize_saved_score(score, repository=repository, storage_root=config.storage_root)
 
     @app.get("/api/scores/{score_id}/content")
     def get_score_content(score_id: int) -> FileResponse:
-        repository = _get_repository(app)
+        config = load_config()
+        repository = _get_repository(app, config)
         try:
             score = repository.get_score(score_id)
         except KeyError as error:
             raise HTTPException(status_code=404, detail="保存済み楽譜が見つかりません") from error
 
-        file_path = Path(score["storage_path"])
+        file_path = repository.resolve_storage_path(score, config.storage_root)
         if not file_path.exists():
             raise HTTPException(status_code=404, detail="保存ファイルが見つかりません")
 
@@ -249,9 +257,18 @@ def _serialize_remote_result(item: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def _serialize_saved_score(item: dict[str, Any]) -> dict[str, Any]:
+def _serialize_saved_score(
+    item: dict[str, Any],
+    *,
+    repository: ScoreRepository | None = None,
+    storage_root: str | None = None,
+) -> dict[str, Any]:
+    storage_path = item["storage_path"]
+    if repository and storage_root:
+        storage_path = str(repository.resolve_storage_path(item, storage_root))
     return {
         **item,
+        "storage_path": storage_path,
         "content_url": f"/api/scores/{item['id']}/content",
     }
 
